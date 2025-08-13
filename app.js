@@ -6,6 +6,7 @@ class ProposalApp {
         this.currentCurrency = 'KZT';
         this.currentPage = 'dashboard';
         this.editingProposalId = null;
+        this.authToken = null;
         
         // Initialize data from the provided JSON
         this.initializeData();
@@ -27,15 +28,6 @@ class ProposalApp {
     }
 
     initializeData() {
-        // Users data
-        if (!localStorage.getItem('users')) {
-            const users = [
-                {"id": 1, "username": "admin", "email": "admin@company.kz", "password": "admin123", "role": "admin", "name": "Администратор Системы", "company": "ТОО \"Цифровые Решения\""},
-                {"id": 2, "username": "manager", "email": "manager@company.kz", "password": "manager123", "role": "user", "name": "Менеджер Продаж", "company": "ТОО \"Цифровые Решения\""}
-            ];
-            localStorage.setItem('users', JSON.stringify(users));
-        }
-
         // Sample proposals
         if (!localStorage.getItem('proposals')) {
             const proposals = [
@@ -60,7 +52,8 @@ class ProposalApp {
                     "terms": "Сроки выполнения: 45 рабочих дней. Оплата: 50% предоплата, 50% по завершению.",
                     "notes": "Включает техническую поддержку 3 месяца",
                     "validUntil": "2024-09-10",
-                    "userId": 2
+                    "userId": 2,
+                    "userName": "Менеджер Продаж"
                 },
                 {
                     "id": 2,
@@ -83,7 +76,8 @@ class ProposalApp {
                     "terms": "Development time: 60 business days. Payment: 40% upfront, 60% upon completion.",
                     "notes": "Includes 6 months of technical support",
                     "validUntil": "2024-09-05",
-                    "userId": 1
+                    "userId": 1,
+                    "userName": "Администратор Системы"
                 }
             ];
             localStorage.setItem('proposals', JSON.stringify(proposals));
@@ -290,13 +284,15 @@ class ProposalApp {
     }
 
     checkAuth() {
-        const savedUser = localStorage.getItem('currentUser');
-        if (savedUser) {
+        const session = sessionStorage.getItem('session');
+        if (session) {
             try {
-                this.currentUser = JSON.parse(savedUser);
+                const { user, token } = JSON.parse(session);
+                this.currentUser = user;
+                this.authToken = token;
                 this.showMainApp();
             } catch (e) {
-                console.error('Error parsing saved user:', e);
+                console.error('Error parsing session:', e);
                 this.showLoginScreen();
             }
         } else {
@@ -304,35 +300,36 @@ class ProposalApp {
         }
     }
 
-    handleLogin(e) {
+    async handleLogin(e) {
         e.preventDefault();
-        
+
         const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value.trim();
-        
-        console.log('Attempting login with:', username); // Debug log
-        
+
         if (!username || !password) {
             this.showError('Пожалуйста, заполните все поля');
             return;
         }
-        
+
         try {
-            const users = JSON.parse(localStorage.getItem('users')) || [];
-            console.log('Available users:', users); // Debug log
-            
-            const user = users.find(u => u.username === username && u.password === password);
-            console.log('Found user:', user); // Debug log
-            
-            if (user) {
-                this.currentUser = user;
-                localStorage.setItem('currentUser', JSON.stringify(user));
-                this.hideError();
-                this.showMainApp();
-                console.log('Login successful'); // Debug log
-            } else {
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (!response.ok) {
                 this.showError('Неверное имя пользователя или пароль');
+                return;
             }
+
+            const data = await response.json();
+            this.currentUser = data.user;
+            this.authToken = data.token;
+            sessionStorage.setItem('session', JSON.stringify({ token: data.token, user: data.user }));
+
+            this.hideError();
+            this.showMainApp();
         } catch (error) {
             console.error('Login error:', error);
             this.showError('Ошибка входа в систему');
@@ -340,8 +337,9 @@ class ProposalApp {
     }
 
     handleLogout() {
-        localStorage.removeItem('currentUser');
+        sessionStorage.removeItem('session');
         this.currentUser = null;
+        this.authToken = null;
         this.showLoginScreen();
     }
 
@@ -513,10 +511,8 @@ class ProposalApp {
             const formattedAmount = this.formatCurrency(proposal.totalAmount, proposal.currency);
             
             let userInfo = '';
-            if (showUser) {
-                const users = JSON.parse(localStorage.getItem('users'));
-                const user = users.find(u => u.id === proposal.userId);
-                userInfo = `<div class="proposal-user">Автор: ${user ? user.name : 'Неизвестно'}</div>`;
+            if (showUser && proposal.userName) {
+                userInfo = `<div class="proposal-user">Автор: ${proposal.userName}</div>`;
             }
 
             proposalEl.innerHTML = `
