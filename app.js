@@ -358,6 +358,18 @@ class ProposalApp {
         }
     }
 
+    safeParse(key, defaultValue) {
+        try {
+            const item = localStorage.getItem(key);
+            return item ? JSON.parse(item) : defaultValue;
+        } catch (error) {
+            console.error(`Error parsing ${key}:`, error);
+            localStorage.setItem(key, JSON.stringify(defaultValue));
+            alert('Произошла ошибка при загрузке данных. Хранилище было сброшено.');
+            return defaultValue;
+        }
+    }
+
     showLoginScreen() {
         const loginScreen = document.getElementById('loginScreen');
         const mainApp = document.getElementById('mainApp');
@@ -464,7 +476,7 @@ class ProposalApp {
     loadAdminPanel() {
         if (this.currentUser.role !== 'admin') return;
         
-        const allProposals = JSON.parse(localStorage.getItem('proposals')) || [];
+        const allProposals = this.safeParse('proposals', []);
         const adminTotalEl = document.getElementById('adminTotalProposals');
         const adminMonthlyEl = document.getElementById('adminMonthlyProposals');
         
@@ -483,7 +495,7 @@ class ProposalApp {
     }
 
     getUserProposals() {
-        const allProposals = JSON.parse(localStorage.getItem('proposals')) || [];
+        const allProposals = this.safeParse('proposals', []);
         if (this.currentUser.role === 'admin') {
             return allProposals;
         }
@@ -719,7 +731,7 @@ class ProposalApp {
         };
         
         // Save to localStorage
-        const proposals = JSON.parse(localStorage.getItem('proposals')) || [];
+        const proposals = this.safeParse('proposals', []);
         
         if (this.editingProposalId) {
             const index = proposals.findIndex(p => p.id === this.editingProposalId);
@@ -737,7 +749,7 @@ class ProposalApp {
     }
 
     getProposalById(id) {
-        const proposals = JSON.parse(localStorage.getItem('proposals')) || [];
+        const proposals = this.safeParse('proposals', []);
         return proposals.find(p => p.id === id);
     }
 
@@ -866,7 +878,7 @@ class ProposalApp {
             return;
         }
         
-        const proposals = JSON.parse(localStorage.getItem('proposals')) || [];
+        const proposals = this.safeParse('proposals', []);
         const filteredProposals = proposals.filter(p => p.id !== id);
         localStorage.setItem('proposals', JSON.stringify(filteredProposals));
         
