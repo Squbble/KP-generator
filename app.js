@@ -20,6 +20,10 @@ class ProposalApp {
         }
     }
 
+    sanitize(text) {
+        return typeof text === 'string' ? text.replace(/[<>&]/g, '') : '';
+    }
+
     initializeApp() {
         this.loadUserPreferences();
         this.bindEvents();
@@ -499,45 +503,92 @@ class ProposalApp {
         container.innerHTML = '';
 
         if (proposals.length === 0) {
-            container.innerHTML = `<div class="empty-state">
-                <p>${this.t('noProposalsFound')}</p>
-            </div>`;
+            const emptyState = document.createElement('div');
+            emptyState.className = 'empty-state';
+            const p = document.createElement('p');
+            p.textContent = this.t('noProposalsFound');
+            emptyState.appendChild(p);
+            container.appendChild(emptyState);
             return;
         }
 
         proposals.forEach(proposal => {
             const proposalEl = document.createElement('div');
             proposalEl.className = 'proposal-item';
-            
+
             const statusClass = `status-badge--${proposal.status}`;
             const formattedAmount = this.formatCurrency(proposal.totalAmount, proposal.currency);
-            
-            let userInfo = '';
+
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'proposal-info';
+
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'proposal-title';
+            titleDiv.textContent = this.sanitize(proposal.title);
+            infoDiv.appendChild(titleDiv);
+
+            const clientDiv = document.createElement('div');
+            clientDiv.className = 'proposal-client';
+            clientDiv.textContent = this.sanitize(proposal.clientName);
+            infoDiv.appendChild(clientDiv);
+
             if (showUser) {
                 const users = JSON.parse(localStorage.getItem('users'));
                 const user = users.find(u => u.id === proposal.userId);
-                userInfo = `<div class="proposal-user">Автор: ${user ? user.name : 'Неизвестно'}</div>`;
+                const userDiv = document.createElement('div');
+                userDiv.className = 'proposal-user';
+                userDiv.textContent = `Автор: ${this.sanitize(user ? user.name : 'Неизвестно')}`;
+                infoDiv.appendChild(userDiv);
             }
 
-            proposalEl.innerHTML = `
-                <div class="proposal-info">
-                    <div class="proposal-title">${proposal.title}</div>
-                    <div class="proposal-client">${proposal.clientName}</div>
-                    ${userInfo}
-                    <div class="proposal-meta">
-                        <span class="status-badge ${statusClass}">${this.t(proposal.status)}</span>
-                        <span>${this.formatDate(proposal.createdDate)}</span>
-                    </div>
-                </div>
-                <div class="proposal-amount">${formattedAmount}</div>
-                <div class="proposal-actions">
-                    <button class="btn btn--sm btn--outline" onclick="app.editProposal(${proposal.id})">${this.t('edit')}</button>
-                    <button class="btn btn--sm btn--secondary" onclick="app.duplicateProposal(${proposal.id})">${this.t('duplicate')}</button>
-                    <button class="btn btn--sm btn--primary" onclick="app.downloadProposalPDF(${proposal.id})">${this.t('download')}</button>
-                    <button class="btn btn--sm btn--outline" style="color: var(--color-error)" onclick="app.deleteProposal(${proposal.id})">${this.t('delete')}</button>
-                </div>
-            `;
-            
+            const metaDiv = document.createElement('div');
+            metaDiv.className = 'proposal-meta';
+            const statusSpan = document.createElement('span');
+            statusSpan.className = `status-badge ${statusClass}`;
+            statusSpan.textContent = this.t(proposal.status);
+            const dateSpan = document.createElement('span');
+            dateSpan.textContent = this.formatDate(proposal.createdDate);
+            metaDiv.appendChild(statusSpan);
+            metaDiv.appendChild(dateSpan);
+            infoDiv.appendChild(metaDiv);
+
+            proposalEl.appendChild(infoDiv);
+
+            const amountDiv = document.createElement('div');
+            amountDiv.className = 'proposal-amount';
+            amountDiv.textContent = formattedAmount;
+            proposalEl.appendChild(amountDiv);
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'proposal-actions';
+
+            const editBtn = document.createElement('button');
+            editBtn.className = 'btn btn--sm btn--outline';
+            editBtn.textContent = this.t('edit');
+            editBtn.addEventListener('click', () => this.editProposal(proposal.id));
+            actionsDiv.appendChild(editBtn);
+
+            const dupBtn = document.createElement('button');
+            dupBtn.className = 'btn btn--sm btn--secondary';
+            dupBtn.textContent = this.t('duplicate');
+            dupBtn.addEventListener('click', () => this.duplicateProposal(proposal.id));
+            actionsDiv.appendChild(dupBtn);
+
+            const downBtn = document.createElement('button');
+            downBtn.className = 'btn btn--sm btn--primary';
+            downBtn.textContent = this.t('download');
+            downBtn.addEventListener('click', () => this.downloadProposalPDF(proposal.id));
+            actionsDiv.appendChild(downBtn);
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'btn btn--sm btn--outline';
+            delBtn.style.color = 'var(--color-error)';
+            delBtn.textContent = this.t('delete');
+            delBtn.addEventListener('click', () => this.deleteProposal(proposal.id));
+            actionsDiv.appendChild(delBtn);
+
+            proposalEl.appendChild(actionsDiv);
+
             container.appendChild(proposalEl);
         });
     }
@@ -590,34 +641,77 @@ class ProposalApp {
     addServiceItem() {
         const container = document.getElementById('servicesContainer');
         if (!container) return;
-        
+
         const serviceItem = document.createElement('div');
         serviceItem.className = 'service-item';
-        
-        serviceItem.innerHTML = `
-            <div class="form-group">
-                <input type="text" name="serviceName" class="form-control" placeholder="${this.t('serviceName')}" required>
-            </div>
-            <div class="form-group">
-                <textarea name="serviceDescription" class="form-control" placeholder="${this.t('description')}"></textarea>
-            </div>
-            <div class="form-group">
-                <input type="number" name="serviceQuantity" class="form-control" placeholder="${this.t('quantity')}" value="1" min="1" required>
-            </div>
-            <div class="form-group">
-                <input type="number" name="servicePrice" class="form-control" placeholder="${this.t('price')}" step="0.01" required>
-            </div>
-            <div class="form-group">
-                <input type="number" name="serviceTotal" class="form-control" placeholder="${this.t('total')}" readonly>
-            </div>
-            <button type="button" class="remove-service-btn" onclick="this.parentElement.remove(); app.calculateTotal();">×</button>
-        `;
+
+        const nameGroup = document.createElement('div');
+        nameGroup.className = 'form-group';
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.name = 'serviceName';
+        nameInput.className = 'form-control';
+        nameInput.placeholder = this.t('serviceName');
+        nameInput.required = true;
+        nameGroup.appendChild(nameInput);
+        serviceItem.appendChild(nameGroup);
+
+        const descGroup = document.createElement('div');
+        descGroup.className = 'form-group';
+        const descTextarea = document.createElement('textarea');
+        descTextarea.name = 'serviceDescription';
+        descTextarea.className = 'form-control';
+        descTextarea.placeholder = this.t('description');
+        descGroup.appendChild(descTextarea);
+        serviceItem.appendChild(descGroup);
+
+        const qtyGroup = document.createElement('div');
+        qtyGroup.className = 'form-group';
+        const quantityInput = document.createElement('input');
+        quantityInput.type = 'number';
+        quantityInput.name = 'serviceQuantity';
+        quantityInput.className = 'form-control';
+        quantityInput.placeholder = this.t('quantity');
+        quantityInput.value = 1;
+        quantityInput.min = 1;
+        quantityInput.required = true;
+        qtyGroup.appendChild(quantityInput);
+        serviceItem.appendChild(qtyGroup);
+
+        const priceGroup = document.createElement('div');
+        priceGroup.className = 'form-group';
+        const priceInput = document.createElement('input');
+        priceInput.type = 'number';
+        priceInput.name = 'servicePrice';
+        priceInput.className = 'form-control';
+        priceInput.placeholder = this.t('price');
+        priceInput.step = '0.01';
+        priceInput.required = true;
+        priceGroup.appendChild(priceInput);
+        serviceItem.appendChild(priceGroup);
+
+        const totalGroup = document.createElement('div');
+        totalGroup.className = 'form-group';
+        const totalInput = document.createElement('input');
+        totalInput.type = 'number';
+        totalInput.name = 'serviceTotal';
+        totalInput.className = 'form-control';
+        totalInput.placeholder = this.t('total');
+        totalInput.readOnly = true;
+        totalGroup.appendChild(totalInput);
+        serviceItem.appendChild(totalGroup);
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'remove-service-btn';
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', () => {
+            serviceItem.remove();
+            this.calculateTotal();
+        });
+        serviceItem.appendChild(removeBtn);
         
         // Add event listeners for calculation
-        const quantityInput = serviceItem.querySelector('[name="serviceQuantity"]');
-        const priceInput = serviceItem.querySelector('[name="servicePrice"]');
-        const totalInput = serviceItem.querySelector('[name="serviceTotal"]');
-        
         const calculateServiceTotal = () => {
             const quantity = parseFloat(quantityInput.value) || 0;
             const price = parseFloat(priceInput.value) || 0;
@@ -666,8 +760,8 @@ class ProposalApp {
         const services = [];
         
         serviceItems.forEach(item => {
-            const name = item.querySelector('[name="serviceName"]').value;
-            const description = item.querySelector('[name="serviceDescription"]').value;
+            const name = this.sanitize(item.querySelector('[name="serviceName"]').value);
+            const description = this.sanitize(item.querySelector('[name="serviceDescription"]').value);
             const quantity = parseFloat(item.querySelector('[name="serviceQuantity"]').value) || 0;
             const price = parseFloat(item.querySelector('[name="servicePrice"]').value) || 0;
             const total = quantity * price;
@@ -686,13 +780,13 @@ class ProposalApp {
         
         const proposal = {
             id: this.editingProposalId || Date.now(),
-            title: formData.get('title'),
-            clientName: formData.get('clientName'),
-            clientEmail: formData.get('clientEmail') || '',
-            clientAddress: formData.get('clientAddress') || '',
+            title: this.sanitize(formData.get('title')),
+            clientName: this.sanitize(formData.get('clientName')),
+            clientEmail: this.sanitize(formData.get('clientEmail') || ''),
+            clientAddress: this.sanitize(formData.get('clientAddress') || ''),
             services: services,
-            terms: formData.get('terms') || '',
-            notes: formData.get('notes') || '',
+            terms: this.sanitize(formData.get('terms') || ''),
+            notes: this.sanitize(formData.get('notes') || ''),
             validUntil: formData.get('validUntil') || '',
             totalAmount: totalAmount,
             currency: this.currentCurrency,
@@ -737,7 +831,7 @@ class ProposalApp {
         
         // Update title
         const titleEl = document.getElementById('createPageTitle');
-        if (titleEl) titleEl.textContent = this.t('edit') + ' - ' + proposal.title;
+        if (titleEl) titleEl.textContent = this.t('edit') + ' - ' + this.sanitize(proposal.title);
         
         // Fill form
         const form = document.getElementById('proposalForm');
@@ -751,10 +845,10 @@ class ProposalApp {
         const notesField = form.querySelector('[name="notes"]');
         const validUntilField = form.querySelector('[name="validUntil"]');
         
-        if (titleField) titleField.value = proposal.title;
-        if (clientNameField) clientNameField.value = proposal.clientName;
-        if (clientEmailField) clientEmailField.value = proposal.clientEmail || '';
-        if (clientAddressField) clientAddressField.value = proposal.clientAddress || '';
+        if (titleField) titleField.value = this.sanitize(proposal.title);
+        if (clientNameField) clientNameField.value = this.sanitize(proposal.clientName);
+        if (clientEmailField) clientEmailField.value = this.sanitize(proposal.clientEmail || '');
+        if (clientAddressField) clientAddressField.value = this.sanitize(proposal.clientAddress || '');
         if (termsField) termsField.value = proposal.terms || '';
         if (notesField) notesField.value = proposal.notes || '';
         if (validUntilField) validUntilField.value = proposal.validUntil || '';
@@ -809,10 +903,10 @@ class ProposalApp {
         const notesField = form.querySelector('[name="notes"]');
         const validUntilField = form.querySelector('[name="validUntil"]');
         
-        if (titleField) titleField.value = proposal.title + ' (копия)';
-        if (clientNameField) clientNameField.value = proposal.clientName;
-        if (clientEmailField) clientEmailField.value = proposal.clientEmail || '';
-        if (clientAddressField) clientAddressField.value = proposal.clientAddress || '';
+        if (titleField) titleField.value = this.sanitize(proposal.title) + ' (копия)';
+        if (clientNameField) clientNameField.value = this.sanitize(proposal.clientName);
+        if (clientEmailField) clientEmailField.value = this.sanitize(proposal.clientEmail || '');
+        if (clientAddressField) clientAddressField.value = this.sanitize(proposal.clientAddress || '');
         if (termsField) termsField.value = proposal.terms || '';
         if (notesField) notesField.value = proposal.notes || '';
         
@@ -909,13 +1003,29 @@ class ProposalApp {
         if (dateEl) dateEl.textContent = this.formatDate(new Date().toISOString().split('T')[0]);
         
         // Client info
-        const clientInfo = `
-            <strong>${formData.get('clientName')}</strong><br>
-            ${formData.get('clientEmail') ? 'Email: ' + formData.get('clientEmail') + '<br>' : ''}
-            ${formData.get('clientAddress') ? 'Адрес: ' + formData.get('clientAddress') : ''}
-        `;
         const clientInfoEl = document.getElementById('pdfClientInfo');
-        if (clientInfoEl) clientInfoEl.innerHTML = clientInfo;
+        if (clientInfoEl) {
+            clientInfoEl.innerHTML = '';
+            const nameStrong = document.createElement('strong');
+            nameStrong.textContent = this.sanitize(formData.get('clientName'));
+            clientInfoEl.appendChild(nameStrong);
+
+            const clientEmail = this.sanitize(formData.get('clientEmail'));
+            if (clientEmail) {
+                clientInfoEl.appendChild(document.createElement('br'));
+                const emailSpan = document.createElement('span');
+                emailSpan.textContent = `Email: ${clientEmail}`;
+                clientInfoEl.appendChild(emailSpan);
+            }
+
+            const clientAddress = this.sanitize(formData.get('clientAddress'));
+            if (clientAddress) {
+                clientInfoEl.appendChild(document.createElement('br'));
+                const addressSpan = document.createElement('span');
+                addressSpan.textContent = `Адрес: ${clientAddress}`;
+                clientInfoEl.appendChild(addressSpan);
+            }
+        }
         
         // Services table
         const servicesTable = document.getElementById('pdfServicesTable');
@@ -935,14 +1045,19 @@ class ProposalApp {
                 
                 if (name && quantity > 0 && price > 0) {
                     const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${index + 1}</td>
-                        <td>${name}</td>
-                        <td>${description}</td>
-                        <td>${quantity}</td>
-                        <td>${this.formatCurrency(price, this.currentCurrency)}</td>
-                        <td>${this.formatCurrency(total, this.currentCurrency)}</td>
-                    `;
+                    const tdIndex = document.createElement('td');
+                    tdIndex.textContent = index + 1;
+                    const tdName = document.createElement('td');
+                    tdName.textContent = this.sanitize(name);
+                    const tdDesc = document.createElement('td');
+                    tdDesc.textContent = this.sanitize(description);
+                    const tdQty = document.createElement('td');
+                    tdQty.textContent = quantity;
+                    const tdPrice = document.createElement('td');
+                    tdPrice.textContent = this.formatCurrency(price, this.currentCurrency);
+                    const tdTotal = document.createElement('td');
+                    tdTotal.textContent = this.formatCurrency(total, this.currentCurrency);
+                    row.append(tdIndex, tdName, tdDesc, tdQty, tdPrice, tdTotal);
                     servicesTable.appendChild(row);
                 }
             });
@@ -954,8 +1069,8 @@ class ProposalApp {
         }
         
         // Terms and notes
-        const terms = formData.get('terms');
-        const notes = formData.get('notes');
+        const terms = this.sanitize(formData.get('terms'));
+        const notes = this.sanitize(formData.get('notes'));
         
         const termsSection = document.getElementById('pdfTermsSection');
         const termsEl = document.getElementById('pdfTerms');
@@ -976,7 +1091,8 @@ class ProposalApp {
             if (notesSection) notesSection.style.display = 'none';
         }
         
-        this.downloadPDF(pdfTemplate, formData.get('title') || 'Коммерческое предложение');
+        const pdfTitle = this.sanitize(formData.get('title')) || 'Коммерческое предложение';
+        this.downloadPDF(pdfTemplate, pdfTitle);
     }
 
     createPDFFromProposal(proposal) {
@@ -991,13 +1107,29 @@ class ProposalApp {
         if (dateEl) dateEl.textContent = this.formatDate(proposal.createdDate);
         
         // Client info
-        const clientInfo = `
-            <strong>${proposal.clientName}</strong><br>
-            ${proposal.clientEmail ? 'Email: ' + proposal.clientEmail + '<br>' : ''}
-            ${proposal.clientAddress ? 'Адрес: ' + proposal.clientAddress : ''}
-        `;
         const clientInfoEl = document.getElementById('pdfClientInfo');
-        if (clientInfoEl) clientInfoEl.innerHTML = clientInfo;
+        if (clientInfoEl) {
+            clientInfoEl.innerHTML = '';
+            const nameStrong = document.createElement('strong');
+            nameStrong.textContent = this.sanitize(proposal.clientName);
+            clientInfoEl.appendChild(nameStrong);
+
+            const clientEmail = this.sanitize(proposal.clientEmail);
+            if (clientEmail) {
+                clientInfoEl.appendChild(document.createElement('br'));
+                const emailSpan = document.createElement('span');
+                emailSpan.textContent = `Email: ${clientEmail}`;
+                clientInfoEl.appendChild(emailSpan);
+            }
+
+            const clientAddress = this.sanitize(proposal.clientAddress);
+            if (clientAddress) {
+                clientInfoEl.appendChild(document.createElement('br'));
+                const addressSpan = document.createElement('span');
+                addressSpan.textContent = `Адрес: ${clientAddress}`;
+                clientInfoEl.appendChild(addressSpan);
+            }
+        }
         
         // Services table
         const servicesTable = document.getElementById('pdfServicesTable');
@@ -1006,14 +1138,19 @@ class ProposalApp {
             
             proposal.services.forEach((service, index) => {
                 const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${index + 1}</td>
-                    <td>${service.name}</td>
-                    <td>${service.description || ''}</td>
-                    <td>${service.quantity}</td>
-                    <td>${this.formatCurrency(service.price, proposal.currency)}</td>
-                    <td>${this.formatCurrency(service.total, proposal.currency)}</td>
-                `;
+                const tdIndex = document.createElement('td');
+                tdIndex.textContent = index + 1;
+                const tdName = document.createElement('td');
+                tdName.textContent = this.sanitize(service.name);
+                const tdDesc = document.createElement('td');
+                tdDesc.textContent = this.sanitize(service.description || '');
+                const tdQty = document.createElement('td');
+                tdQty.textContent = service.quantity;
+                const tdPrice = document.createElement('td');
+                tdPrice.textContent = this.formatCurrency(service.price, proposal.currency);
+                const tdTotal = document.createElement('td');
+                tdTotal.textContent = this.formatCurrency(service.total, proposal.currency);
+                row.append(tdIndex, tdName, tdDesc, tdQty, tdPrice, tdTotal);
                 servicesTable.appendChild(row);
             });
             
@@ -1028,22 +1165,24 @@ class ProposalApp {
         const termsEl = document.getElementById('pdfTerms');
         const notesSection = document.getElementById('pdfNotesSection');
         const notesEl = document.getElementById('pdfNotes');
-        
-        if (proposal.terms) {
-            if (termsEl) termsEl.textContent = proposal.terms;
+
+        const sanitizedTerms = this.sanitize(proposal.terms);
+        if (sanitizedTerms) {
+            if (termsEl) termsEl.textContent = sanitizedTerms;
             if (termsSection) termsSection.style.display = 'block';
         } else {
             if (termsSection) termsSection.style.display = 'none';
         }
-        
-        if (proposal.notes) {
-            if (notesEl) notesEl.textContent = proposal.notes;
+
+        const sanitizedNotes = this.sanitize(proposal.notes);
+        if (sanitizedNotes) {
+            if (notesEl) notesEl.textContent = sanitizedNotes;
             if (notesSection) notesSection.style.display = 'block';
         } else {
             if (notesSection) notesSection.style.display = 'none';
         }
         
-        this.downloadPDF(pdfTemplate, proposal.title);
+        this.downloadPDF(pdfTemplate, this.sanitize(proposal.title));
     }
 
     downloadPDF(element, filename) {
