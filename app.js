@@ -565,6 +565,9 @@ class ProposalApp {
         
         if (titleEl) titleEl.textContent = this.t('createProposal');
         if (form) form.reset();
+
+        const errorEl = document.getElementById('proposalError');
+        if (errorEl) errorEl.classList.add('hidden');
         
         // Clear services container
         const container = document.getElementById('servicesContainer');
@@ -601,7 +604,7 @@ class ProposalApp {
                 <input type="number" name="serviceQuantity" class="form-control" placeholder="${this.t('quantity')}" value="1" min="1" required>
             </div>
             <div class="form-group">
-                <input type="number" name="servicePrice" class="form-control" placeholder="${this.t('price')}" step="0.01" required>
+                <input type="number" name="servicePrice" class="form-control" placeholder="${this.t('price')}" step="0.01" min="0" required>
             </div>
             <div class="form-group">
                 <input type="number" name="serviceTotal" class="form-control" placeholder="${this.t('total')}" readonly>
@@ -615,8 +618,8 @@ class ProposalApp {
         const totalInput = serviceItem.querySelector('[name="serviceTotal"]');
         
         const calculateServiceTotal = () => {
-            const quantity = parseFloat(quantityInput.value) || 0;
-            const price = parseFloat(priceInput.value) || 0;
+            const quantity = Math.max(parseFloat(quantityInput.value) || 0, 0);
+            const price = Math.max(parseFloat(priceInput.value) || 0, 0);
             const total = quantity * price;
             totalInput.value = total.toFixed(2);
             this.calculateTotal();
@@ -648,33 +651,47 @@ class ProposalApp {
     saveProposal(status = 'draft') {
         const form = document.getElementById('proposalForm');
         if (!form) return;
-        
-        const formData = new FormData(form);
-        
-        // Validate required fields
-        if (!formData.get('title') || !formData.get('clientName')) {
-            alert('Пожалуйста, заполните обязательные поля');
+
+        const errorEl = document.getElementById('proposalError');
+        if (errorEl) {
+            errorEl.classList.add('hidden');
+            errorEl.textContent = '';
+        }
+
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            if (errorEl) {
+                errorEl.textContent = 'Пожалуйста, заполните обязательные поля';
+                errorEl.classList.remove('hidden');
+            }
             return;
         }
-        
+
+        const formData = new FormData(form);
+
         // Collect services
         const serviceItems = document.querySelectorAll('.service-item');
         const services = [];
-        
+
         serviceItems.forEach(item => {
             const name = item.querySelector('[name="serviceName"]').value;
             const description = item.querySelector('[name="serviceDescription"]').value;
-            const quantity = parseFloat(item.querySelector('[name="serviceQuantity"]').value) || 0;
-            const price = parseFloat(item.querySelector('[name="servicePrice"]').value) || 0;
+            const quantity = Math.max(parseFloat(item.querySelector('[name="serviceQuantity"]').value) || 0, 0);
+            const price = Math.max(parseFloat(item.querySelector('[name="servicePrice"]').value) || 0, 0);
             const total = quantity * price;
-            
+
             if (name && quantity > 0 && price > 0) {
                 services.push({ name, description, quantity, price, total });
             }
         });
-        
+
         if (services.length === 0) {
-            alert('Добавьте хотя бы одну услугу');
+            if (errorEl) {
+                errorEl.textContent = 'Добавьте хотя бы одну услугу';
+                errorEl.classList.remove('hidden');
+            } else {
+                alert('Добавьте хотя бы одну услугу');
+            }
             return;
         }
         
