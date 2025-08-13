@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система создания коммерческих предложений</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-card card">
+            <div class="card__body">
+                <div class="login-header">
+                    <h1 data-translate="login">Вход в систему</h1>
+                    <p data-translate="loginSubtitle">Система управления коммерческими предложениями</p>
+                </div>
+                
+                <form id="loginForm" class="login-form">
+                    <div class="form-group">
+                        <label class="form-label" data-translate="username">Имя пользователя</label>
+                        <input type="text" id="username" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" data-translate="password">Пароль</label>
+                        <input type="password" id="password" class="form-control" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn--primary btn--full-width" data-translate="signIn">
+                        Войти
+                    </button>
+                    
+                    <div class="demo-credentials">
+                        <p><strong>Демо-данные:</strong></p>
+                        <p>Администратор: admin / admin123</p>
+                        <p>Менеджер: manager / manager123</p>
+                    </div>
+                </form>
+                
+                <div id="loginError" class="error-message hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="app-container hidden">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <h2 class="logo">КП Система</h2>
+                    <nav class="main-nav">
+                        <a href="#" data-page="dashboard" class="nav-link active" data-translate="dashboard">Панель управления</a>
+                        <a href="#" data-page="proposals" class="nav-link" data-translate="allProposals">Все КП</a>
+                        <a href="#" data-page="create" class="nav-link" data-translate="createProposal">Создать КП</a>
+                        <a href="#" data-page="admin" class="nav-link admin-only hidden" data-translate="admin">Администратор</a>
+                    </nav>
+                </div>
+                
+                <div class="header-right">
+                    <div class="header-controls">
+                        <select id="languageSelector" class="form-control language-selector">
+                            <option value="ru">Русский</option>
+                            <option value="en">English</option>
+                        </select>
+                        
+                        <select id="currencySelector" class="form-control currency-selector">
+                            <option value="KZT">₸ KZT</option>
+                            <option value="USD">$ USD</option>
+                            <option value="EUR">€ EUR</option>
+                        </select>
+                    </div>
+                    
+                    <div class="user-menu">
+                        <span id="currentUser" class="user-name"></span>
+                        <button id="logoutBtn" class="btn btn--secondary btn--sm" data-translate="logout">Выход</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Page -->
+            <div id="dashboardPage" class="page-content">
+                <div class="dashboard-header">
+                    <h1 data-translate="dashboard">Панель управления</h1>
+                    <p class="welcome-text">Добро пожаловать, <span id="welcomeUser"></span>!</p>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card card">
+                        <div class="card__body">
+                            <div class="stat-icon">📊</div>
+                            <div class="stat-value" id="totalProposalsCount">0</div>
+                            <div class="stat-label" data-translate="totalProposals">Всего КП</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card card">
+                        <div class="card__body">
+                            <div class="stat-icon">📝</div>
+                            <div class="stat-value" id="draftsCount">0</div>
+                            <div class="stat-label" data-translate="drafts">Черновики</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card card">
+                        <div class="card__body">
+                            <div class="stat-icon">📤</div>
+                            <div class="stat-value" id="sentCount">0</div>
+                            <div class="stat-label" data-translate="sent">Отправлено</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card card">
+                        <div class="card__body">
+                            <div class="stat-icon">✅</div>
+                            <div class="stat-value" id="approvedCount">0</div>
+                            <div class="stat-label" data-translate="approved">Одобрено</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="dashboard-actions">
+                    <button class="btn btn--primary" data-page="create" data-translate="createProposal">
+                        Создать новое КП
+                    </button>
+                    <button class="btn btn--outline" data-page="proposals" data-translate="viewAll">
+                        Посмотреть все КП
+                    </button>
+                </div>
+                
+                <div class="recent-proposals">
+                    <h3 data-translate="recentProposals">Недавние КП</h3>
+                    <div id="recentProposalsList" class="proposals-list"></div>
+                </div>
+            </div>
+
+            <!-- Proposals List Page -->
+            <div id="proposalsPage" class="page-content hidden">
+                <div class="page-header">
+                    <h1 data-translate="allProposals">Все коммерческие предложения</h1>
+                    <button class="btn btn--primary" data-page="create" data-translate="createProposal">
+                        Создать КП
+                    </button>
+                </div>
+                
+                <div class="filters-bar">
+                    <input type="text" id="searchInput" class="form-control search-input" data-translate-placeholder="search" placeholder="Поиск по названию или клиенту...">
+                    <select id="statusFilter" class="form-control">
+                        <option value="">Все статусы</option>
+                        <option value="draft" data-translate="drafts">Черновик</option>
+                        <option value="sent" data-translate="sent">Отправлено</option>
+                        <option value="approved" data-translate="approved">Одобрено</option>
+                    </select>
+                </div>
+                
+                <div id="proposalsList" class="proposals-list"></div>
+            </div>
+
+            <!-- Create/Edit Proposal Page -->
+            <div id="createPage" class="page-content hidden">
+                <div class="page-header">
+                    <h1 id="createPageTitle" data-translate="createProposal">Создать коммерческое предложение</h1>
+                    <div class="form-actions">
+                        <button id="saveDraftBtn" class="btn btn--outline" data-translate="saveDraft">Сохранить как черновик</button>
+                        <button id="generatePdfBtn" class="btn btn--primary" data-translate="generatePDF">Создать PDF</button>
+                    </div>
+                </div>
+                
+                <form id="proposalForm" class="proposal-form">
+                    <div class="form-sections">
+                        <!-- Proposal Basic Info -->
+                        <section class="form-section card">
+                            <div class="card__body">
+                                <h3>Основная информация</h3>
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label class="form-label">Название КП *</label>
+                                        <input type="text" name="title" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" data-translate="validUntil">Действительно до</label>
+                                        <input type="date" name="validUntil" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Client Information -->
+                        <section class="form-section card">
+                            <div class="card__body">
+                                <h3 data-translate="clientInfo">Информация о клиенте</h3>
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label class="form-label" data-translate="clientName">Название клиента *</label>
+                                        <input type="text" name="clientName" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" data-translate="clientEmail">Email клиента</label>
+                                        <input type="email" name="clientEmail" class="form-control">
+                                    </div>
+                                    <div class="form-group full-width">
+                                        <label class="form-label" data-translate="clientAddress">Адрес клиента</label>
+                                        <textarea name="clientAddress" class="form-control" rows="2"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Services -->
+                        <section class="form-section card">
+                            <div class="card__body">
+                                <div class="section-header">
+                                    <h3 data-translate="services">Услуги</h3>
+                                    <button type="button" id="addServiceBtn" class="btn btn--secondary btn--sm" data-translate="addService">
+                                        Добавить услугу
+                                    </button>
+                                </div>
+                                
+                                <div id="servicesContainer" class="services-container">
+                                    <!-- Services will be added dynamically -->
+                                </div>
+                                
+                                <div class="total-section">
+                                    <div class="total-row">
+                                        <span data-translate="total">Общая сумма:</span>
+                                        <span id="totalAmount" class="total-amount">0.00 ₸</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Terms and Notes -->
+                        <section class="form-section card">
+                            <div class="card__body">
+                                <div class="form-grid">
+                                    <div class="form-group full-width">
+                                        <label class="form-label" data-translate="terms">Условия</label>
+                                        <textarea name="terms" class="form-control" rows="3"></textarea>
+                                    </div>
+                                    <div class="form-group full-width">
+                                        <label class="form-label" data-translate="notes">Примечания</label>
+                                        <textarea name="notes" class="form-control" rows="3"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Admin Page -->
+            <div id="adminPage" class="page-content hidden admin-only">
+                <div class="page-header">
+                    <h1 data-translate="admin">Панель администратора</h1>
+                </div>
+                
+                <div class="admin-stats">
+                    <div class="stat-card card">
+                        <div class="card__body">
+                            <h4>Статистика системы</h4>
+                            <div class="admin-stat-grid">
+                                <div>Всего пользователей: <span id="adminUsersCount">2</span></div>
+                                <div>Всего КП в системе: <span id="adminTotalProposals">0</span></div>
+                                <div>КП за месяц: <span id="adminMonthlyProposals">0</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="admin-proposals">
+                    <h3>Все КП пользователей</h3>
+                    <div id="adminProposalsList" class="proposals-list"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- PDF Template -->
+    <div id="pdfTemplate" class="pdf-template hidden">
+        <div class="pdf-header">
+            <div class="company-info">
+                <h2 id="pdfCompanyName">ТОО "Цифровые Решения"</h2>
+                <div class="company-details">
+                    <p>г. Алматы, ул. Абая 150/230</p>
+                    <p>Email: info@digital-solutions.kz</p>
+                    <p>Тел: +7 (727) 123-45-67</p>
+                </div>
+            </div>
+            <div class="proposal-info">
+                <h1 id="pdfProposalTitle" data-translate="proposalTitle">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ</h1>
+                <div class="proposal-meta">
+                    <div>№ <span id="pdfProposalNumber"></span></div>
+                    <div id="pdfDate"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pdf-content">
+            <div class="client-section">
+                <h3 data-translate="clientInfo">Информация о клиенте</h3>
+                <div id="pdfClientInfo"></div>
+            </div>
+
+            <div class="services-section">
+                <h3 data-translate="services">Услуги</h3>
+                <table class="services-table">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th data-translate="serviceName">Наименование</th>
+                            <th data-translate="description">Описание</th>
+                            <th data-translate="quantity">Кол-во</th>
+                            <th data-translate="price">Цена</th>
+                            <th data-translate="total">Сумма</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pdfServicesTable">
+                    </tbody>
+                </table>
+                
+                <div class="total-section">
+                    <div class="total-row">
+                        <strong data-translate="total">Общая сумма: <span id="pdfTotalAmount"></span></strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="terms-section" id="pdfTermsSection">
+                <h3 data-translate="terms">Условия</h3>
+                <div id="pdfTerms"></div>
+            </div>
+
+            <div class="notes-section" id="pdfNotesSection">
+                <h3 data-translate="notes">Примечания</h3>
+                <div id="pdfNotes"></div>
+            </div>
+
+            <div class="signature-section">
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <div class="signature-label">Подпись исполнителя</div>
+                </div>
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <div class="signature-label">Подпись заказчика</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Обработка...</div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
